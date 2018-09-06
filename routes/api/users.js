@@ -1,6 +1,10 @@
 const express = require('express');
 const gravatar = require('gravatar');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const passport = require('passport');
+
+const keys = require('../../config/keys');
 
 const router = express.Router();
 
@@ -22,7 +26,6 @@ router.post('/register', (req, res) => {
       if (user) {
         return res.status(400).json({ email: 'Email already exists' });
       }
-
       const avatar = gravatar.url(req.body.email, {
         s: '200',
         d: 'mm',
@@ -47,6 +50,59 @@ router.post('/register', (req, res) => {
 
       return newUser;
     });
+});
+
+
+// @route   GET /api/users/login
+// @desc    Login User / Return token
+// @access  Public
+
+router.post('/login', (req, res) => {
+  const email = req.body.email;
+  const password = req.body.password;
+  User.findOne({ email })
+    .then((user) => {
+      // Check user
+      if (!user) {
+        return res.status(404).json({ email: 'User not found' });
+      }
+
+      // Check password
+      bcrypt.compare(password, user.password)
+        .then((isMatch) => {
+          if (isMatch) {
+            // User matched
+            const payload = {
+              id: user.id,
+              name: user.name,
+              avatar: user.avatar,
+            };
+            jwt.sign(
+              payload,
+              keys.secretOrKey,
+              { expiresIn: 3600 },
+              (err, token) => res.json({
+                success: true,
+                token: `Bearer: ${token}`,
+              }),
+            );
+          } else {
+            res.status(400).json({ password: 'Password incorrect' });
+          }
+        });
+    });
+});
+
+// @route   GET /api/users/current
+// @desc    Return current user
+// @access  Private
+
+router.get('/current', passport.authenticate('jwt', { session: false }), (req, res) => {
+  res.json({
+    id: req.user.id,
+    name: req.user.name,
+    email: req.user.email,
+  });
 });
 
 module.exports = router;
