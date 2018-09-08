@@ -4,7 +4,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const passport = require('passport');
 
+let a;
+
 const keys = require('../../config/keys');
+const validateRegisterInput = require('../../validation/register');
 
 const router = express.Router();
 
@@ -21,6 +24,12 @@ router.get('/test', (req, res) => res.json({ msg: 'Users test' }));
 // @access  Public
 
 router.post('/register', (req, res) => {
+  const { errors, isValid } = validateRegisterInput(req.body);
+  a = 1;
+  if (!isValid) {
+    return res.status(400).json(errors);
+  }
+
   User.findOne({ email: req.body.email })
     .then((user) => {
       if (user) {
