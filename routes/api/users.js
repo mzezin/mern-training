@@ -4,10 +4,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const passport = require('passport');
 
-let a;
-
 const keys = require('../../config/keys');
 const validateRegisterInput = require('../../validation/register');
+const validateLoginInput = require('../../validation/login');
 
 const router = express.Router();
 
@@ -33,7 +32,8 @@ router.post('/register', (req, res) => {
   User.findOne({ email: req.body.email })
     .then((user) => {
       if (user) {
-        return res.status(400).json({ email: 'Email already exists' });
+        errors.email = 'Email already exists';
+        return res.status(400).json(errors);
       }
       const avatar = gravatar.url(req.body.email, {
         s: '200',
@@ -67,13 +67,21 @@ router.post('/register', (req, res) => {
 // @access  Public
 
 router.post('/login', (req, res) => {
+  const { errors, isValid } = validateLoginInput(req.body);
+
+  if (!isValid) {
+    return res.status(400).json(errors);
+  }
+
   const email = req.body.email;
   const password = req.body.password;
+
   User.findOne({ email })
     .then((user) => {
       // Check user
       if (!user) {
-        return res.status(404).json({ email: 'User not found' });
+        errors.email = 'User not found';
+        return res.status(404).json(errors);
       }
 
       // Check password
@@ -92,11 +100,12 @@ router.post('/login', (req, res) => {
               { expiresIn: 3600 },
               (err, token) => res.json({
                 success: true,
-                token: `Bearer: ${token}`,
+                token: `Bearer ${token}`,
               }),
             );
           } else {
-            res.status(400).json({ password: 'Password incorrect' });
+            errors.password = 'Password incorrect';
+            res.status(400).json(errors);
           }
         });
     });
